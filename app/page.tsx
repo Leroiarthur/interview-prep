@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { PrepData } from "@/lib/types";
 import PrepCard from "@/components/PrepCard";
 import Link from "next/link";
+import Navbar from "@/components/Navbar";
 
 export default function Home() {
   const [user, setUser] = useState<any>(null);
@@ -78,18 +79,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen">
-      <nav className="border-b border-gray-100 px-6 py-4">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <span className="text-xs uppercase tracking-widest text-gray-400">Interview Prep</span>
-          <div className="flex items-center gap-6">
-            <a href="/history" className="text-xs text-gray-400 hover:text-gray-700 transition-colors">History</a>
-            <a href="/insights" className="text-xs text-gray-400 hover:text-gray-700 transition-colors">Insights</a>
-            <a href="/profile" className="text-xs text-gray-400 hover:text-gray-700 transition-colors">Profile</a>
-            <a href="/account" className="text-xs text-gray-400 hover:text-gray-700 transition-colors">Account</a>
-            <button onClick={handleSignOut} className="text-xs text-gray-400 hover:text-gray-700 transition-colors">Sign out</button>
-          </div>
-        </div>
-      </nav>
+<Navbar onSignOut={handleSignOut} />
       <main className="max-w-2xl mx-auto px-6 py-12">
         <div className="mb-10">
           <h1 className="text-3xl font-light text-gray-900 tracking-tight">

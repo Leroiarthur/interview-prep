@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
+import Navbar from "@/components/Navbar";
 
 type Insights = {
   empty: boolean;
@@ -27,29 +28,64 @@ type Insights = {
   };
 };
 
+const STORAGE_KEY = "interview_prep_insights";
+
 export default function InsightsPage() {
   const [insights, setInsights] = useState<Insights | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastGenerated, setLastGenerated] = useState<string | null>(null);
+  const [answerCount, setAnswerCount] = useState<number>(0);
   const router = useRouter();
   const supabase = createClient();
 
   useEffect(() => {
-    const load = async () => {
+    const init = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/auth/login"); return; }
-      try {
-        const res = await fetch("/api/insights");
-        if (!res.ok) throw new Error();
-        setInsights(await res.json());
-      } catch {
-        setError("Failed to load insights.");
-      } finally {
-        setLoading(false);
+
+      const { count } = await supabase
+        .from("practice_answers")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id);
+      setAnswerCount(count ?? 0);
+
+      const cached = localStorage.getItem(STORAGE_KEY);
+      if (cached) {
+        try {
+          const { data, generatedAt } = JSON.parse(cached);
+          setInsights(data);
+          setLastGenerated(generatedAt);
+        } catch {}
       }
+
+      setCheckingAuth(false);
     };
-    load();
+    init();
   }, []);
+
+  const handleGenerate = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/insights");
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setInsights(data);
+      const generatedAt = new Date().toISOString();
+      setLastGenerated(generatedAt);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ data, generatedAt }));
+    } catch {
+      setError("Failed to generate insights. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDate = (iso: string) => new Date(iso).toLocaleDateString("en-US", {
+    month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
+  });
 
   const scoreColor = (score: number) => {
     if (score >= 9) return "text-green-600";
@@ -59,50 +95,70 @@ export default function InsightsPage() {
   };
 
   const scoreBar = (score: number) => {
-    const pct = (score / 10) * 100;
     const color = score >= 9 ? "bg-green-400" : score >= 7 ? "bg-blue-400" : score >= 5 ? "bg-yellow-400" : "bg-red-400";
     return (
       <div className="w-full bg-gray-100 rounded-full h-1.5 mt-1">
-        <div className={`h-1.5 rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
+        <div className={`h-1.5 rounded-full ${color}`} style={{ width: `${(score / 10) * 100}%` }} />
       </div>
     );
   };
 
-  if (loading) return (
+  if (checkingAuth) return (
     <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center space-y-3">
-        <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-700 rounded-full animate-spin mx-auto" />
-        <p className="text-xs text-gray-400">Analyzing your practice history...</p>
-      </div>
+      <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-700 rounded-full animate-spin" />
     </div>
   );
 
   return (
     <div className="min-h-screen">
-      <nav className="border-b border-gray-100 px-6 py-4">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <Link href="/" className="text-xs uppercase tracking-widest text-gray-400 hover:text-gray-700 transition-colors">← Interview Prep</Link>
-          <div className="flex items-center gap-6">
-            <Link href="/history" className="text-xs text-gray-400 hover:text-gray-700 transition-colors">History</Link>
-            <Link href="/profile" className="text-xs text-gray-400 hover:text-gray-700 transition-colors">Profile</Link>
-            <Link href="/account" className="text-xs text-gray-400 hover:text-gray-700 transition-colors">Account</Link>
-          </div>
-        </div>
-      </nav>
+      <Navbar showBack backHref="/" backLabel="Interview Prep" />
 
       <main className="max-w-2xl mx-auto px-6 py-12 space-y-12">
-        <div>
-          <p className="text-xs uppercase tracking-widest text-gray-400 mb-2">Your journey</p>
-          <h1 className="text-3xl font-light text-gray-900 tracking-tight">Insights</h1>
+
+        <div className="flex items-end justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-widest text-gray-400 mb-2">Your journey</p>
+            <h1 className="text-3xl font-light text-gray-900 tracking-tight">Insights</h1>
+            {lastGenerated && (
+              <p className="text-xs text-gray-400 mt-1">Last generated {formatDate(lastGenerated)}</p>
+            )}
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            <button
+              onClick={handleGenerate}
+              disabled={loading || answerCount === 0}
+              className="px-4 py-2.5 text-sm font-medium bg-gray-900 text-white rounded-xl hover:bg-gray-700 disabled:opacity-25 disabled:cursor-not-allowed transition-all"
+            >
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Analyzing...
+                </span>
+              ) : insights ? "Regenerate" : "Generate insights"}
+            </button>
+            {answerCount === 0 && (
+              <p className="text-xs text-gray-400">No practice data yet</p>
+            )}
+            {answerCount > 0 && (
+              <p className="text-xs text-gray-400">{answerCount} answer{answerCount > 1 ? "s" : ""} to analyze</p>
+            )}
+          </div>
         </div>
 
         {error && <p className="text-sm text-red-400">{error}</p>}
 
-        {insights?.empty && (
-          <div className="text-center py-16 space-y-3">
-            <p className="text-sm text-gray-500">No practice data yet.</p>
-            <p className="text-xs text-gray-400">Generate a prep sheet and start answering questions to see your insights.</p>
-            <Link href="/" className="inline-block mt-4 text-sm text-gray-700 underline underline-offset-2">Generate a prep sheet</Link>
+        {!insights && !loading && (
+          <div className="border border-dashed border-gray-200 rounded-2xl p-12 text-center space-y-3">
+            <p className="text-sm text-gray-500">
+              {answerCount === 0
+                ? "Practice some questions first to unlock your insights."
+                : "Click Generate insights to analyze your practice history."}
+            </p>
+            {answerCount === 0 && (
+              <Link href="/" className="inline-block text-sm text-gray-700 underline underline-offset-2">
+                Generate a prep sheet
+              </Link>
+            )}
           </div>
         )}
 
@@ -120,7 +176,7 @@ export default function InsightsPage() {
                 </p>
               </div>
               <div className="border border-gray-100 rounded-xl p-4">
-                <p className="text-xs uppercase tracking-widest text-gr-400 mb-1">Behavioral</p>
+                <p className="text-xs uppercase tracking-widest text-gray-400 mb-1">Behavioral</p>
                 <p className={`text-3xl font-light ${insights.stats.avgBehavioral ? scoreColor(insights.stats.avgBehavioral) : "text-gray-300"}`}>
                   {insights.stats.avgBehavioral ?? "—"}
                 </p>
@@ -195,7 +251,7 @@ export default function InsightsPage() {
               </Section>
             )}
 
-            <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-1 gap-4 pb-12">
               <div className="bg-gray-50 border border-gray-100 rounded-xl p-5">
                 <p className="text-xs uppercase tracking-widest text-gray-400 mb-2">CV advice</p>
                 <p className="text-sm text-gray-600 leading-relaxed">{insights.ai.cvAdvice}</p>
@@ -207,6 +263,7 @@ export default function InsightsPage() {
             </div>
           </>
         )}
+
       </main>
     </div>
   );

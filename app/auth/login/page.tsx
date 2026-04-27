@@ -27,7 +27,7 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="max-w-sm mx-auto px-6 py-24">
+    <main className="max-w-sm mx-auto px-6 py-24 min-h-screen flex flex-col justify-center">
       <p className="text-xs uppercase tracking-widest text-gray-400 mb-3">
         Interview Prep
       </p>

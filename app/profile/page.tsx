@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Navbar from "@/components/Navbar";
 
 type Experience = { company: string; role: string; startDate: string; endDate: string; description: string; };
 type Education = { school: string; degree: string; startDate: string; endDate: string; };
@@ -100,15 +101,7 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen">
-      <nav className="border-b border-gray-100 px-6 py-4">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <Link href="/" className="text-xs uppercase tracking-widest text-gray-400 hover:text-gray-700 transition-colors">← Interview Prep</Link>
-          <div className="flex items-center gap-6">
-            <Link href="/history" className="text-xs text-gray-400 hover:text-gray-700 transition-colors">History</Link>
-            <button onClick={handleSignOut} className="text-xs text-gray-400 hover:text-gray-700 transition-colors">Sign out</button>
-          </div>
-        </div>
-      </nav>
+      <Navbar showBack backHref="/" backLabel="Interview Prep" />
 
       <main className="max-w-2xl mx-auto px-6 py-12 space-y-10">
 

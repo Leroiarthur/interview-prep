@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { PrepData } from "@/lib/types";
 import PrepCard from "@/components/PrepCard";
 import Link from "next/link";
+import Navbar from "@/components/Navbar";
 
 type HistoryEntry = {
   id: string;
@@ -55,14 +56,7 @@ export default function HistoryPage() {
 
   return (
     <div className="min-h-screen">
-      <nav className="border-b border-gray-100 px-6 py-4">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <Link href="/" className="text-xs uppercase tracking-widest text-gray-400 hover:text-gray-700 transition-colors">
-            ← Interview Prep
-          </Link>
-          <span className="text-xs text-gray-400">History</span>
-        </div>
-      </nav>
+      <Navbar showBack backHref="/" backLabel="Interview Prep" />
 
       <main className="max-w-2xl mx-auto px-6 py-12">
         <h1 className="text-3xl font-light text-gray-900 tracking-tight mb-10">
