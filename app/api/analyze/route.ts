@@ -36,7 +36,7 @@ Rules:
 - technicalQuestions must be specific to the tech stack and domain mentioned
 - behavioralQuestions must use STAR method framing
 - questionsToAsk must signal strategic thinking, not just curiosity
-- cvWeaknesses are plausible gaps for this role profile (you do not have the actual CV)
+- If a CANDIDATE CV is provided, use it to make cvWeaknesses specific to that candidate actual gaps for this role. If no CV is provided, generate plausible generic gaps.
 - Always respond in English regardless of the job description language`;
 
 export async function POST(req: NextRequest) {
@@ -50,11 +50,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    let cvContext = "";
+    try {
+      const supabase = await createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("cv_text")
+          .eq("id", user.id)
+          .single();
+        if (profile?.cv_text) {
+          cvContext = profile.cv_text;
+        }
+      }
+    } catch {}
+
+    const userMessage = cvContext
+      ? `JOB DESCRIPTION:\n${jobDescription}\n\nCANDIDATE CV:\n${cvContext}`
+      : jobDescription;
+
     const message = await client.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 2000,
       system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: jobDescription }],
+      messages: [{ role: "user", content: userMessage }],
     });
 
     const raw =
@@ -67,7 +87,6 @@ export async function POST(req: NextRequest) {
 
     const data: PrepData = JSON.parse(cleaned);
 
-    // Sauvegarde dans Supabase si user connecté
     try {
       const supabase = await createClient();
       const { data: { user } } = await supabase.auth.getUser();
@@ -81,7 +100,6 @@ export async function POST(req: NextRequest) {
       }
     } catch (dbError) {
       console.error("Failed to save to history:", dbError);
-      // On ne bloque pas si la sauvegarde échoue
     }
 
     return NextResponse.json(data);
